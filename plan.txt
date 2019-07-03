@@ -1,0 +1,7 @@
+=== Cerberus ===
+
+Libs:
+* wl-roots
+* QT5?
+* Nuklear?
+*
