@@ -1,0 +1,3 @@
+===Resources===
+* https://drewdevault.com/2018/02/17/Writing-a-Wayland-compositor-1.html
+* https://github.com/therecipe/qt/wiki/Getting-Started
