@@ -217,6 +217,7 @@ int main(int argc, char **argv) {
   /*struct nk_font *cousine = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Cousine-Regular.ttf", 13, 0);*/
   nk_glfw3_font_stash_end();}
 
+  char msg[50];
   while (!glfwWindowShouldClose(win)) {
     /* Input */
     glfwPollEvents();
@@ -226,9 +227,14 @@ int main(int argc, char **argv) {
     if (nk_begin(ctx, "Cerberus", nk_rect(0, 0, width, height), NK_WINDOW_BORDER|NK_WINDOW_TITLE)) {
       nk_layout_row_begin(ctx, NK_STATIC, 30, 1);
       {
-        nk_layout_row_push(ctx, 100);
-        nk_label(ctx, "First Row", NK_TEXT_LEFT);
-
+        nk_layout_row_push(ctx, width-30);
+        struct cerberus_output *output;
+        int i = 0;
+        wl_list_for_each(output, &server.outputs, link) {
+          sprintf(msg, "Monitor %d: %s", i, output->data->make),
+          nk_label(ctx, msg, NK_TEXT_LEFT);
+          i++;
+        }
         if (nk_button_label(ctx, "button"))
           fprintf(stdout, "button pressed\n");
 
