@@ -6,13 +6,14 @@ project(
 	meson_version: '>=0.48.0',
 	default_options: [
 		'c_std=c11',
-    'warning_level=2',
+    #   'warning_level=2',
     #		'werror=true',  error on unused vars etc
   ]
 )
 
 add_project_arguments([
 	'-DWLR_USE_UNSTABLE',
+	'-Wall',
 ], language: 'c')
 
 cc = meson.get_compiler('c')
@@ -28,9 +29,12 @@ add_project_arguments('-DWL_HIDE_DEPRECATED', language: 'c')
 
 mcw_inc = include_directories('include')
 
-wlroots        = dependency('wlroots')
-wayland_client = dependency('wayland-client')
-wayland_server = dependency('wayland-server')
+m_dep           = cc.find_library('m', required : false) 
+wlroots         = dependency('wlroots')
+wayland_client  = dependency('wayland-client')
+wayland_server  = dependency('wayland-server')
+glew            = dependency('glew')
+glfw            = dependency('glfw3')
 
 executable(
 	'cerberus',
@@ -43,5 +47,8 @@ executable(
 		wlroots,
 		wayland_server,
     wayland_client,
+    glfw,
+    glew,
+    m_dep,
 	],
 )

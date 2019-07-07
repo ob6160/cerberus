@@ -9,7 +9,33 @@
 #include <strings.h>
 #include <wayland-client.h>
 #include <wlr/types/wlr_output.h>
+#include <stdarg.h>
+#include <math.h>
+
+
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+
+#define NK_INCLUDE_FIXED_TYPES
+#define NK_INCLUDE_STANDARD_IO
+#define NK_INCLUDE_STANDARD_VARARGS
+#define NK_INCLUDE_DEFAULT_ALLOCATOR
+#define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
+#define NK_INCLUDE_FONT_BAKING
+#define NK_INCLUDE_DEFAULT_FONT
+#define NK_IMPLEMENTATION
+#define NK_GLFW_GL3_IMPLEMENTATION
+#define NK_KEYSTATE_BASED_INPUT
+#include "nuklear.h"
+#include "nuklear_glfw_gl3.h"
+
 #include "log.h"
+
+#define WINDOW_WIDTH 1200
+#define WINDOW_HEIGHT 800
+
+#define MAX_VERTEX_BUFFER 512 * 1024
+#define MAX_ELEMENT_BUFFER 128 * 1024
 
 /**
  * Internal representation of server state
@@ -32,9 +58,11 @@ static void output_handle_geometry(void *data, struct wl_output *wl_output,
 		int32_t x, int32_t y, int32_t phys_width, int32_t phys_height,
 		int32_t subpixel, const char *make, const char *model,
 		int32_t transform) {
-	struct cerberus_output *output = data;
+	
+  struct cerberus_output *output = data;
   strncpy(output->data->make, make, sizeof(output->data->make));
 	strncpy(output->data->model, model, sizeof(output->data->model));
+  
   output->data->phys_width = phys_width;
   output->data->phys_height = phys_height;
   output->data->subpixel = subpixel;
@@ -116,6 +144,8 @@ struct wl_registry_listener registry_listener = {
     .global_remove = global_remove
 };
 
+static void error_callback(int e, const char *d)
+{printf("Error %d: %s\n", e, d);}
 
 int main(int argc, char **argv) {
   swaybg_log_init(LOG_DEBUG);
@@ -131,12 +161,104 @@ int main(int argc, char **argv) {
   server.wl_registry = wl_display_get_registry(server.wl_display);
   assert(server.wl_registry);
 
+  // Setup linked list of outputs
   wl_list_init(&server.outputs);
 
+  // Setup general i/o registry
   wl_registry_add_listener(server.wl_registry, &registry_listener, &server);
+
+  // Init display
   wl_display_roundtrip(server.wl_display);
   wl_display_dispatch(server.wl_display);
 
-//  wl_display_disconnect(server.wl_display);
+  /* Platform */
+    static GLFWwindow *win;
+    int width = 0, height = 0;
+    struct nk_context *ctx;
+    struct nk_colorf bg;
+    /* GLFW */
+    glfwSetErrorCallback(error_callback);
+    if (!glfwInit()) {
+        fprintf(stdout, "[GFLW] failed to init!\n");
+        exit(1);
+    }
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+    glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+    win = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Demo", NULL, NULL);
+    glfwMakeContextCurrent(win);
+    glfwGetWindowSize(win, &width, &height);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+
+    /* OpenGL */
+    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    glewExperimental = 1;
+    if (glewInit() != GLEW_OK) {
+        fprintf(stderr, "Failed to setup GLEW\n");
+        exit(1);
+    }
+
+  ctx = nk_glfw3_init(win, NK_GLFW3_INSTALL_CALLBACKS);
+
+ /* Load Fonts: if none of these are loaded a default font will be used  */
+  /* Load Cursor: if you uncomment cursor loading please hide the cursor */
+  {struct nk_font_atlas *atlas;
+  nk_glfw3_font_stash_begin(&atlas);
+  /*struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "../../../extra_font/DroidSans.ttf", 14, 0);*/
+  /*struct nk_font *roboto = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Roboto-Regular.ttf", 14, 0);*/
+  /*struct nk_font *future = nk_font_atlas_add_from_file(atlas, "../../../extra_font/kenvector_future_thin.ttf", 13, 0);*/
+  /*struct nk_font *clean = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyClean.ttf", 12, 0);*/
+  /*struct nk_font *tiny = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyTiny.ttf", 10, 0);*/
+  /*struct nk_font *cousine = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Cousine-Regular.ttf", 13, 0);*/
+  nk_glfw3_font_stash_end();}
+
+
+  while (!glfwWindowShouldClose(win))
+    {
+        /* Input */
+        glfwPollEvents();
+        nk_glfw3_new_frame();
+
+        /* GUI */
+        if (nk_begin(ctx, "Demo", nk_rect(50, 50, 230, 250),
+            NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
+            NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE))
+        {
+enum {EASY, HARD};
+            static int op = EASY;
+            static int property = 20;
+            nk_layout_row_static(ctx, 30, 80, 1);
+            if (nk_button_label(ctx, "button"))
+                fprintf(stdout, "button pressed\n");
+
+            nk_layout_row_dynamic(ctx, 30, 2);
+            if (nk_option_label(ctx, "easy", op == EASY)) op = EASY;
+            if (nk_option_label(ctx, "hard", op == HARD)) op = HARD;
+
+            nk_layout_row_dynamic(ctx, 25, 1);
+nk_property_int(ctx, "Compression:", 0, &property, 100, 10, 1);
+        }
+        nk_end(ctx);
+        /* Draw */
+        glfwGetWindowSize(win, &width, &height);
+        glViewport(0, 0, width, height);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glClearColor(0.25f, 0.5f, 0.5f, 1.0f);
+        /* IMPORTANT: `nk_glfw_render` modifies some global OpenGL state
+         * with blending, scissor, face culling, depth test and viewport and
+         * defaults everything back into a default state.
+         * Make sure to either a.) save and restore or b.) reset your own state after
+         * rendering the UI. */
+        nk_glfw3_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
+        glfwSwapBuffers(win);
+    }
+    nk_glfw3_shutdown();
+    glfwTerminate();
+  
+  wl_display_disconnect(server.wl_display);
   return 0;
 }
