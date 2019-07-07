@@ -31,8 +31,8 @@
 
 #include "log.h"
 
-#define WINDOW_WIDTH 1200
-#define WINDOW_HEIGHT 800
+#define WINDOW_WIDTH 400
+#define WINDOW_HEIGHT 200
 
 #define MAX_VERTEX_BUFFER 512 * 1024
 #define MAX_ELEMENT_BUFFER 128 * 1024
@@ -172,39 +172,40 @@ int main(int argc, char **argv) {
   wl_display_dispatch(server.wl_display);
 
   /* Platform */
-    static GLFWwindow *win;
-    int width = 0, height = 0;
-    struct nk_context *ctx;
-    struct nk_colorf bg;
-    /* GLFW */
-    glfwSetErrorCallback(error_callback);
-    if (!glfwInit()) {
-        fprintf(stdout, "[GFLW] failed to init!\n");
-        exit(1);
-    }
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  static GLFWwindow *win;
+  int width = 0, height = 0;
+  struct nk_context *ctx;
+  struct nk_colorf bg;
+  /* GLFW */
+  glfwSetErrorCallback(error_callback);
+  if (!glfwInit()) {
+      fprintf(stdout, "[GFLW] failed to init!\n");
+      exit(1);
+  }
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
-    glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-    win = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Demo", NULL, NULL);
-    glfwMakeContextCurrent(win);
-    glfwGetWindowSize(win, &width, &height);
-    glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+  glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+  glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
+  win = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "cerberus", NULL, NULL);
+  glfwMakeContextCurrent(win);
+  glfwGetWindowSize(win, &width, &height);
+  glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
 
-    /* OpenGL */
-    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    glewExperimental = 1;
-    if (glewInit() != GLEW_OK) {
-        fprintf(stderr, "Failed to setup GLEW\n");
-        exit(1);
-    }
+  /* OpenGL */
+  glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+  glewExperimental = 1;
+  if (glewInit() != GLEW_OK) {
+      fprintf(stderr, "Failed to setup GLEW\n");
+      exit(1);
+  }
 
   ctx = nk_glfw3_init(win, NK_GLFW3_INSTALL_CALLBACKS);
 
- /* Load Fonts: if none of these are loaded a default font will be used  */
+  /* Load Fonts: if none of these are loaded a default font will be used  */
   /* Load Cursor: if you uncomment cursor loading please hide the cursor */
   {struct nk_font_atlas *atlas;
   nk_glfw3_font_stash_begin(&atlas);
@@ -216,49 +217,40 @@ int main(int argc, char **argv) {
   /*struct nk_font *cousine = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Cousine-Regular.ttf", 13, 0);*/
   nk_glfw3_font_stash_end();}
 
+  while (!glfwWindowShouldClose(win)) {
+    /* Input */
+    glfwPollEvents();
+    nk_glfw3_new_frame();
 
-  while (!glfwWindowShouldClose(win))
-    {
-        /* Input */
-        glfwPollEvents();
-        nk_glfw3_new_frame();
+    /* GUI */
+    if (nk_begin(ctx, "Cerberus", nk_rect(0, 0, width, height), NK_WINDOW_BORDER|NK_WINDOW_TITLE)) {
+      nk_layout_row_begin(ctx, NK_STATIC, 30, 1);
+      {
+        nk_layout_row_push(ctx, 100);
+        nk_label(ctx, "First Row", NK_TEXT_LEFT);
 
-        /* GUI */
-        if (nk_begin(ctx, "Demo", nk_rect(50, 50, 230, 250),
-            NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
-            NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE))
-        {
-enum {EASY, HARD};
-            static int op = EASY;
-            static int property = 20;
-            nk_layout_row_static(ctx, 30, 80, 1);
-            if (nk_button_label(ctx, "button"))
-                fprintf(stdout, "button pressed\n");
+        if (nk_button_label(ctx, "button"))
+          fprintf(stdout, "button pressed\n");
 
-            nk_layout_row_dynamic(ctx, 30, 2);
-            if (nk_option_label(ctx, "easy", op == EASY)) op = EASY;
-            if (nk_option_label(ctx, "hard", op == HARD)) op = HARD;
-
-            nk_layout_row_dynamic(ctx, 25, 1);
-nk_property_int(ctx, "Compression:", 0, &property, 100, 10, 1);
-        }
-        nk_end(ctx);
-        /* Draw */
-        glfwGetWindowSize(win, &width, &height);
-        glViewport(0, 0, width, height);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glClearColor(0.25f, 0.5f, 0.5f, 1.0f);
-        /* IMPORTANT: `nk_glfw_render` modifies some global OpenGL state
-         * with blending, scissor, face culling, depth test and viewport and
-         * defaults everything back into a default state.
-         * Make sure to either a.) save and restore or b.) reset your own state after
-         * rendering the UI. */
-        nk_glfw3_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
-        glfwSwapBuffers(win);
+      }
+      nk_layout_row_end(ctx);
     }
-    nk_glfw3_shutdown();
-    glfwTerminate();
-  
+    nk_end(ctx);
+    /* Draw */
+    glfwGetWindowSize(win, &width, &height);
+    glViewport(0, 0, width, height);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glClearColor(0.25f, 0.5f, 0.5f, 1.0f);
+    /* IMPORTANT: `nk_glfw_render` modifies some global OpenGL state
+     * with blending, scissor, face culling, depth test and viewport and
+     * defaults everything back into a default state.
+     * Make sure to either a.) save and restore or b.) reset your own state after
+     * rendering the UI. */
+    nk_glfw3_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
+    glfwSwapBuffers(win);
+  }
+  nk_glfw3_shutdown();
+  glfwTerminate();
   wl_display_disconnect(server.wl_display);
   return 0;
 }
