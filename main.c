@@ -49,9 +49,9 @@ struct cerberus_server {
 struct cerberus_output {
 	struct wl_list link;
 	uint32_t id;
-	struct wl_output *output;
-  struct wlr_output *data;
   uint32_t x, y;
+  struct wl_output *output;
+  struct wlr_output *data;
 };
 
 static void output_handle_geometry(void *data, struct wl_output *wl_output,
@@ -76,14 +76,22 @@ static void output_handle_geometry(void *data, struct wl_output *wl_output,
 
 static void output_handle_mode(void *data, struct wl_output *wl_output,
 		uint32_t flags, int32_t width, int32_t height, int32_t refresh) {
-	if (flags & WL_OUTPUT_MODE_CURRENT) {
-		struct cerberus_output *output = data;
-		output->data->width = width;
-	  output->data->height = height;
-    output->data->refresh = refresh;
-	  swaybg_log(LOG_DEBUG, "Output Width: %d", output->data->width);
-    swaybg_log(LOG_DEBUG, "Output Height: %d", output->data->height);
-}
+  
+  // Get output context
+  struct cerberus_output *output = data;
+  // Register and populate output
+  struct wlr_output_mode *mode = calloc(1, sizeof(struct wlr_output_mode));
+  mode->flags = flags;
+  mode->width = width;
+  mode->height = height;
+  mode->refresh = refresh;
+  
+  wl_list_insert(&output->data->modes, &mode->link);
+
+	// Get current (enabled) mode.
+  if (flags & WL_OUTPUT_MODE_CURRENT) {
+    output->data->current_mode = mode;  
+  }
 }
 
 static void output_handle_done(void* data, struct wl_output *wl_output) {
@@ -117,10 +125,16 @@ void global_add(void *data,
   
 	struct cerberus_server *server = data;
   if (!strcmp(interface, wl_output_interface.name)) {
+    // Setup output
     struct cerberus_output *output = calloc(1, sizeof(struct cerberus_output));
     output->data = calloc(1, sizeof(struct wlr_output));
     output->id = id;
     output->output = wl_registry_bind(reg, id, &wl_output_interface, 1);
+
+    // Init the mode list.
+    wl_list_init(&output->data->modes);
+
+
     wl_output_add_listener(output->output, &output_listener, output);
     wl_list_insert(&server->outputs, &output->link);
   }
@@ -176,6 +190,7 @@ int main(int argc, char **argv) {
   int width = 0, height = 0;
   struct nk_context *ctx;
   struct nk_colorf bg;
+  int window_open = 1;
   /* GLFW */
   glfwSetErrorCallback(error_callback);
   if (!glfwInit()) {
@@ -190,7 +205,7 @@ int main(int argc, char **argv) {
 #endif
   glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
   glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
-  win = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "cerberus", NULL, NULL);
+  win = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Cerberus GUI", NULL, NULL);
   glfwMakeContextCurrent(win);
   glfwGetWindowSize(win, &width, &height);
   glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
@@ -217,27 +232,39 @@ int main(int argc, char **argv) {
   /*struct nk_font *cousine = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Cousine-Regular.ttf", 13, 0);*/
   nk_glfw3_font_stash_end();}
 
-  char msg[50];
+  char msg[200];
   while (!glfwWindowShouldClose(win)) {
     /* Input */
     glfwPollEvents();
     nk_glfw3_new_frame();
-
+ 
     /* GUI */
-    if (nk_begin(ctx, "Cerberus", nk_rect(0, 0, width, height), NK_WINDOW_BORDER|NK_WINDOW_TITLE)) {
+    if (
+      nk_begin(ctx,
+      "Cerberus",
+      nk_rect(0, 0, width, height),
+      NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_TITLE)
+    ){
+ 
       nk_layout_row_begin(ctx, NK_STATIC, 30, 1);
       {
         nk_layout_row_push(ctx, width-30);
         struct cerberus_output *output;
         int i = 0;
         wl_list_for_each(output, &server.outputs, link) {
-          sprintf(msg, "Monitor %d: %s", i, output->data->make),
+          sprintf(msg,
+            "Monitor %d: %s | Res: %d, %d",
+            i,
+            output->data->make,
+            output->data->current_mode->width,
+            output->data->current_mode->height
+          ),
           nk_label(ctx, msg, NK_TEXT_LEFT);
           i++;
         }
-        if (nk_button_label(ctx, "button"))
+        if (nk_button_label(ctx, "button")) {
           fprintf(stdout, "button pressed\n");
-
+        }
       }
       nk_layout_row_end(ctx);
     }
