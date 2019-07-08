@@ -253,13 +253,15 @@ int main(int argc, char **argv) {
         int i = 0;
         wl_list_for_each(output, &server.outputs, link) {
           sprintf(msg,
-            "Monitor %d: %s | Res: %d, %d",
+            "Monitor %d: %s",
             i,
-            output->data->make,
+            output->data->make
+          ), nk_label(ctx, msg, NK_TEXT_LEFT);
+          sprintf(msg,
+            "> Current Mode: %dx%d",
             output->data->current_mode->width,
             output->data->current_mode->height
-          ),
-          nk_label(ctx, msg, NK_TEXT_LEFT);
+          ), nk_label(ctx, msg, NK_TEXT_LEFT);
           i++;
         }
         if (nk_button_label(ctx, "button")) {
