@@ -50,9 +50,23 @@ struct cerberus_output {
 	struct wl_list link;
 	uint32_t id;
   uint32_t x, y;
+  struct cerberus_server *server;
   struct wl_output *output;
   struct wlr_output *data;
+  struct wl_listener destroy;
+
+  struct {
+    struct wl_signal destroy;
+  } events;
 };
+
+static void handle_destroy(struct wl_listener *listener, void *data) {
+  // struct cerberus_output *output = wl_container_of(listener, output, destroy);
+  // struct cerberus_server *server = output->server;
+  // wl_signal_emit(&output->events.destroy, output);
+  struct wlr_output_configuration_v1 *config =
+    wlr_output_configuration_v1_create();
+}
 
 static void output_handle_geometry(void *data, struct wl_output *wl_output,
 		int32_t x, int32_t y, int32_t phys_width, int32_t phys_height,
@@ -106,6 +120,9 @@ static void output_handle_scale(void* data, struct wl_output *wl_output,
 
 /**
  * Output listener
+ * @TODO: Think about refactoring so that this follows sway pattern:
+ *  - desktop/output.c:665 (register example)
+ *  - tree/output.c:259 (usage example)
  */
 static const struct wl_output_listener output_listener = {
 	.geometry = output_handle_geometry,
@@ -129,13 +146,19 @@ void global_add(void *data,
     struct cerberus_output *output = calloc(1, sizeof(struct cerberus_output));
     output->data = calloc(1, sizeof(struct wlr_output));
     output->id = id;
+    output->server = data;
     output->output = wl_registry_bind(reg, id, &wl_output_interface, 1);
 
     // Init the mode list.
     wl_list_init(&output->data->modes);
 
-
+    // Add output to list
     wl_output_add_listener(output->output, &output_listener, output);
+    
+    wl_signal_init(&output->data->events.destroy);
+    wl_signal_add(&output->data->events.destroy, &output->destroy);
+    output->destroy.notify = handle_destroy;
+
     wl_list_insert(&server->outputs, &output->link);
   }
 }
@@ -184,6 +207,12 @@ int main(int argc, char **argv) {
   // Init display
   wl_display_roundtrip(server.wl_display);
   wl_display_dispatch(server.wl_display);
+
+  struct wlr_output *output = ((struct cerberus_output*) server.outputs.next)->data;
+  swaybg_log(LOG_DEBUG, "%d", output->enabled);
+
+  wl_signal_emit(&output->events.destroy, output);
+
 
   /* Platform */
   static GLFWwindow *win;

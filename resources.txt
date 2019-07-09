@@ -3,3 +3,11 @@
 * https://github.com/therecipe/qt/wiki/Getting-Started
 * https://github.com/swaywm/wlroots/blob/master/examples/dmabuf-capture.c - Useful output reference
 * https://wayland.freedesktop.org/docs/html/apa.html - Wayland API Protocol Spec
+
+===Relevant Files===
+* sway/output/enable.c
+* sway/desktop/output.c
+* sway/tree/output.c
+* sway/config/output.c
+* sway/commands/output/*
+* sway/include/output.h

@@ -5,3 +5,14 @@ Libs:
 * QT5?
 * Nuklear?
 *
+
+Features:
+* Command-line configuration (?maybe?)
+* Drag rearrange windows
+* Output Settings:
+	- Resolution
+	- Enabled
+	- Position
+* Export to:
+	- Sway config command
+	- Allow people to write plugins for this??
